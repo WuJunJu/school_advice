@@ -6,6 +6,7 @@ import PublicSuggestionsPage from './pages/PublicSuggestionsPage';
 import SubmitSuggestionPage from './pages/SubmitSuggestionPage';
 import QuerySuggestionPage from './pages/QuerySuggestionPage';
 import AppLayout from './components/AppLayout';
+import PublicSuggestionDetailPage from './pages/PublicSuggestionDetailPage';
 import './App.css';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/public-suggestions" replace />} />
           <Route path="/public-suggestions" element={<PublicSuggestionsPage />} />
+          <Route path="/suggestions/:trackingCode" element={<PublicSuggestionDetailPage />} />
           <Route path="/submit-suggestion" element={<SubmitSuggestionPage />} />
           <Route path="/query-suggestion" element={<QuerySuggestionPage />} />
         </Route>

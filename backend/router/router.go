@@ -26,11 +26,11 @@ func SetupRouter() *gin.Engine {
 	api := r.Group("/api/v1")
 	{
 		// Student facing routes
-		api.GET("/departments", handlers.GetDepartments)                             // Public endpoint for departments
-		api.POST("/suggestions", handlers.SubmitSuggestion)                          // Submit a new suggestion
-		api.GET("/suggestions/:tracking_code", handlers.GetSuggestionByTrackingCode) // Get suggestion status by tracking code
-		api.GET("/suggestions", handlers.GetPublicSuggestions)                       // Get all public suggestions
-		api.POST("/suggestions/:id/upvote", handlers.UpvoteSuggestion)               // Upvote a suggestion
+		api.GET("/departments", handlers.GetDepartments)                              // Public endpoint for departments
+		api.POST("/suggestions", middleware.RateLimiter(), handlers.SubmitSuggestion) // Submit a new suggestion
+		api.GET("/suggestions/:tracking_code", handlers.GetSuggestionByTrackingCode)  // Get suggestion status by tracking code
+		api.GET("/suggestions", handlers.GetPublicSuggestions)                        // Get all public suggestions
+		api.POST("/suggestions/:id/upvote", handlers.UpvoteSuggestion)                // Upvote a suggestion
 
 		// Admin routes
 		admin := api.Group("/admin")
@@ -45,6 +45,7 @@ func SetupRouter() *gin.Engine {
 				authed.GET("/suggestions/:id", handlers.GetSuggestionByID)
 				authed.PUT("/suggestions/:id/status", handlers.UpdateSuggestionStatus)
 				authed.POST("/suggestions/:id/replies", handlers.AddReply)
+				authed.DELETE("/suggestions", handlers.DeleteSuggestions)
 
 				super := authed.Group("/")
 				super.Use(middleware.SuperAdminMiddleware())

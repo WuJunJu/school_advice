@@ -36,6 +36,15 @@ func SubmitSuggestion(c *gin.Context) {
 		return
 	}
 
+	if len(input.Content) > 3000 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "建议内容不能超过3000个字符"})
+		return
+	}
+	if len(input.Title) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "建议标题不能超过100个字符"})
+		return
+	}
+
 	// Validate DepartmentID exists
 	var department models.Department
 	if err := database.DB.First(&department, input.DepartmentID).Error; err != nil {
@@ -118,6 +127,8 @@ func GetPublicSuggestions(c *gin.Context) {
 	// Query
 	query := database.DB.Model(&models.Suggestion{}).
 		Preload("Department").
+		Preload("Replies").
+		Preload("Replies.Replier").
 		Where("is_public = ?", true).
 		Where("status NOT IN (?)", []string{"待审核", "审核不通过"}).
 		Order("created_at DESC")
@@ -134,6 +145,13 @@ func GetPublicSuggestions(c *gin.Context) {
 	if err := query.Limit(pageSize).Offset(offset).Find(&suggestions).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve suggestions"})
 		return
+	}
+
+	// Do not show replier's password hash
+	for i := range suggestions {
+		for j := range suggestions[i].Replies {
+			suggestions[i].Replies[j].Replier.PasswordHash = ""
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -168,4 +186,44 @@ func UpvoteSuggestion(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"upvotes": suggestion.Upvotes})
+}
+
+// DeleteSuggestions godoc
+// @Summary Delete suggestions by ID
+// @Description Delete one or more suggestions by their IDs
+// @Tags admin
+// @Accept  json
+// @Produce  json
+// @Param   body body object{ids=[]int} true "Array of suggestion IDs to delete"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /admin/suggestions [delete]
+func DeleteSuggestions(c *gin.Context) {
+	var requestBody struct {
+		IDs []uint `json:"ids" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(requestBody.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Suggestion IDs cannot be empty"})
+		return
+	}
+
+	// Also delete associated replies
+	if err := database.DB.Where("suggestion_id IN ?", requestBody.IDs).Delete(&models.Reply{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete associated replies"})
+		return
+	}
+
+	if err := database.DB.Where("id IN ?", requestBody.IDs).Delete(&models.Suggestion{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete suggestions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Suggestions and associated replies deleted successfully"})
 }

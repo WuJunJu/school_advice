@@ -41,6 +41,22 @@ const SubmitSuggestionPage: React.FC = () => {
   }, []);
 
   const onFinish = async (values: any) => {
+    const SUBMISSION_LIMIT = 3;
+    const SUBMISSION_PERIOD = 60000; // 1 minute in milliseconds
+
+    const timestamps: number[] = JSON.parse(localStorage.getItem('suggestion_timestamps') || '[]');
+    const now = Date.now();
+
+    const recentTimestamps = timestamps.filter(ts => now - ts < SUBMISSION_PERIOD);
+
+    if (recentTimestamps.length >= SUBMISSION_LIMIT) {
+      Modal.error({
+        title: '提交过于频繁',
+        content: '为了防止恶意提交，您每分钟最多只能提交三次建议。请稍后再试。',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const submissionData: SuggestionSubmission = {
@@ -49,6 +65,10 @@ const SubmitSuggestionPage: React.FC = () => {
         is_public: values.is_public || false,
       };
       const response = await submitSuggestion(submissionData);
+
+      const newTimestamps = [...recentTimestamps, now];
+      localStorage.setItem('suggestion_timestamps', JSON.stringify(newTimestamps));
+
       setTrackingCode(response.tracking_code);
       form.resetFields();
     } catch (error) {
@@ -109,9 +129,17 @@ const SubmitSuggestionPage: React.FC = () => {
                 <Form.Item
                   label="详细内容"
                   name="content"
-                  rules={[{ required: true, message: '请详细描述您的建议' }]}
+                  rules={[
+                    { required: true, message: '请详细描述您的建议' },
+                    { max: 3000, message: '建议内容不能超过3000个字符' },
+                  ]}
                 >
-                  <Input.TextArea rows={6} placeholder="请详细说明您的建议、问题或想法，以便相关部门更好地理解和处理。" />
+                  <Input.TextArea
+                    rows={6}
+                    placeholder="请详细说明您的建议、问题或想法，以便相关部门更好地理解和处理。"
+                    maxLength={3000}
+                    showCount
+                  />
                 </Form.Item>
                 <Row gutter={16}>
                   <Col xs={24} sm={12}>

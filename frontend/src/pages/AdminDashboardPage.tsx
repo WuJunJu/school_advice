@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Avatar, Dropdown, Space, Breadcrumb, theme } from 'antd';
+import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Layout, Menu, Typography, Avatar, Dropdown, Space, Breadcrumb, theme } from 'antd';
 import {
-  PieChartOutlined,
   SolutionOutlined,
   TeamOutlined,
   LogoutOutlined,

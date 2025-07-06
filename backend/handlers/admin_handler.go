@@ -393,9 +393,10 @@ func UpdateAdmin(c *gin.Context) {
 	}
 
 	// Update DepartmentID - logic depends on Role
-	if admin.Role == "super_admin" {
+	switch admin.Role {
+	case "super_admin":
 		admin.DepartmentID = nil // Unset department for super admins
-	} else if admin.Role == "department_admin" {
+	case "department_admin":
 		if input.DepartmentID == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Department ID is required for department admins"})
 			return

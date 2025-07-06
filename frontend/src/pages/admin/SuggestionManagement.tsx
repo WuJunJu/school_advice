@@ -5,6 +5,7 @@ import {
   updateSuggestionStatus,
   addSuggestionReply,
   getSuggestionDetails,
+  deleteSuggestions,
 } from '../../api/admin';
 import type { Department } from '../../api/departments';
 import { getDepartments } from '../../api/departments';
@@ -31,6 +32,7 @@ const SuggestionManagement: React.FC = () => {
   const [view, setView] = useState('待审核'); // '待审核' or '已审核'
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<any>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [form] = Form.useForm();
 
@@ -97,6 +99,21 @@ const SuggestionManagement: React.FC = () => {
       message.error('状态更新失败');
     }
   };
+
+  const handleBulkDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请至少选择一项建议进行删除');
+      return;
+    }
+    try {
+      await deleteSuggestions(selectedRowKeys as number[]);
+      message.success('成功删除所选建议');
+      setSelectedRowKeys([]);
+      fetchSuggestions(1, view, filters); // Refresh data from the first page
+    } catch (error) {
+      message.error('删除建议失败');
+    }
+  };
   
   const showReplyModal = async (suggestion: any) => {
     try {
@@ -161,6 +178,15 @@ const SuggestionManagement: React.FC = () => {
       },
     },
   ];
+
+  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
+    setSelectedRowKeys(newSelectedRowKeys);
+  };
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: onSelectChange,
+  };
   
   const renderModalContent = () => {
     if (!selectedSuggestion) return null;
@@ -223,33 +249,39 @@ const SuggestionManagement: React.FC = () => {
   return (
     <Card>
       <Title level={4}>建议管理</Title>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Col>
-          <Radio.Group value={view} onChange={(e) => setView(e.target.value)}>
+          <Radio.Group value={view} onChange={e => setView(e.target.value)}>
             <Radio.Button value="待审核">待审核</Radio.Button>
             <Radio.Button value="已审核">已审核</Radio.Button>
           </Radio.Group>
         </Col>
         <Col>
-          <Select
-            placeholder="按部门筛选"
-            style={{ width: 150 }}
-            allowClear
-            onChange={(value) => handleFilterChange('department_id', value)}
+          <Space>
+            <Select
+              style={{ width: 200 }}
+              placeholder="按部门筛选"
+              allowClear
+              onChange={(value) => handleFilterChange('department_id', value)}
             >
-            {departments.map(dep => <Option key={dep.ID} value={dep.ID}>{dep.Name}</Option>)}
+              {departments.map(d => <Option key={d.ID} value={d.ID}>{d.Name}</Option>)}
             </Select>
-        </Col>
-        <Col>
-          <Button icon={<ReloadOutlined />} onClick={() => fetchSuggestions(1, view, filters)}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => fetchSuggestions(1, view, filters)}>刷新</Button>
+            {selectedRowKeys.length > 0 && (
+              <Button type="primary" danger onClick={handleBulkDelete}>
+                删除选中 ({selectedRowKeys.length})
+              </Button>
+            )}
+          </Space>
         </Col>
       </Row>
       <Table
+        rowKey="ID"
+        rowSelection={rowSelection}
         columns={columns}
         dataSource={suggestions}
-        rowKey="ID"
-        pagination={pagination}
         loading={loading}
+        pagination={pagination}
         onChange={handleTableChange}
         scroll={{ x: 'max-content' }}
       />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, List, Card, Select, Spin, Empty, Tag, Space, Pagination, Divider } from 'antd';
+import { Typography, List, Card, Select, Spin, Empty, Tag, Space, Pagination, Divider } from 'antd';
+import { Link } from 'react-router-dom';
 import { getPublicSuggestions } from '../api/suggestions';
 import { getDepartments } from '../api/departments';
 import type { Department } from '../api/departments';
@@ -97,40 +98,46 @@ const PublicSuggestionsPage: React.FC = () => {
                             dataSource={suggestions}
                             renderItem={(item: any) => (
                                 <List.Item>
-                                    <Card
-                                        title={item.Title}
-                                        bordered={false}
-                                        style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.09)' }}
-                                        extra={<Tag color="blue">{item.Department.Name}</Tag>}
-                                    >
-                                        <Paragraph ellipsis={{ rows: 3, expandable: true, symbol: '更多' }}>
-                                            {item.Content}
-                                        </Paragraph>
-                                        <Divider />
-                                        {item.Replies && item.Replies.length > 0 ? (
-                                            <div>
-                                                <Title level={5}>部门回复</Title>
-                                                {item.Replies.map((reply: any) => (
-                                                    <Card key={reply.ID} type="inner" size="small" style={{ marginTop: 10 }}>
-                                                        <Paragraph>{reply.Content}</Paragraph>
-                                                        <Text type="secondary" style={{ fontSize: 12 }}>
-                                                            {reply.Replier.Username} 回复于 {new Date(reply.CreatedAt).toLocaleDateString()}
-                                                        </Text>
-                                                    </Card>
-                                                ))}
+                                    <Link to={`/suggestions/${item.TrackingCode}`} style={{ textDecoration: 'none' }}>
+                                        <Card
+                                            hoverable
+                                            title={item.Title}
+                                            bordered={false}
+                                            style={{ 
+                                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.09)',
+                                                height: '350px', // Fixed height
+                                                display: 'flex',
+                                                flexDirection: 'column'
+                                            }}
+                                            headStyle={{ flexShrink: 0 }}
+                                            bodyStyle={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+                                            extra={<Tag color="blue">{item.Department.Name}</Tag>}
+                                        >
+                                            <Paragraph ellipsis={{ rows: 6, expandable: false }}>
+                                                {item.Content}
+                                            </Paragraph>
+                                            
+                                            <div style={{ marginTop: 'auto', flexShrink: 0 }}>
+                                                <Divider style={{ margin: '12px 0' }}/>
+                                                {item.Replies && item.Replies.length > 0 ? (
+                                                    <div >
+                                                        <Text strong>最新回复: </Text>
+                                                        <Text type="secondary" ellipsis>{item.Replies[0].Content}</Text>
+                                                    </div>
+                                                ) : (
+                                                    <Text type="secondary">暂无回复</Text>
+                                                )}
+                                                <Divider style={{ margin: '12px 0' }}/>
+                                                <Space style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <Tag color={item.Status === '已解决' ? 'success' : 'default'}>{item.Status}</Tag>
+                                                    <Space align="center">
+                                                        <CalendarOutlined />
+                                                        <Text type="secondary">{new Date(item.CreatedAt).toLocaleDateString()}</Text>
+                                                    </Space>
+                                                </Space>
                                             </div>
-                                        ) : (
-                                            <Text type="secondary">暂无回复</Text>
-                                        )}
-                                        <Divider />
-                                        <Space>
-                                            <Tag color={item.Status === '已解决' ? 'success' : 'default'}>{item.Status}</Tag>
-                                            <Space align="center">
-                                                <CalendarOutlined />
-                                                <Text type="secondary">{new Date(item.CreatedAt).toLocaleDateString()}</Text>
-                                            </Space>
-                                        </Space>
-                                    </Card>
+                                        </Card>
+                                    </Link>
                                 </List.Item>
                             )}
                         />

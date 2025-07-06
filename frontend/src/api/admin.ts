@@ -75,4 +75,11 @@ export const updateDepartment = async (id: number, data: { name: string }) => {
 export const deleteDepartment = async (id: number) => {
   const response = await apiClient.delete(`/admin/departments/${id}`);
   return response.data;
+};
+
+export const deleteSuggestions = async (ids: number[]) => {
+  const response = await apiClient.delete('/admin/suggestions', {
+    data: { ids },
+  });
+  return response.data;
 }; 
