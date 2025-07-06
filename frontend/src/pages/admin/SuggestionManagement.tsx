@@ -142,7 +142,12 @@ const SuggestionManagement: React.FC = () => {
   const columns = [
     { title: '标题', dataIndex: 'Title', key: 'title', width: 250 },
     { title: '提交人', dataIndex: 'SubmitterName', key: 'submitter', render: (name: string) => name || '匿名' },
-    { title: '部门', dataIndex: ['Department', 'Name'], key: 'department' },
+    {
+      title: '部门',
+      dataIndex: 'Department',
+      key: 'department',
+      render: (department: { Name: string }) => (department && department.Name ? department.Name : '全部部门'),
+    },
     { 
       title: '状态', 
       dataIndex: 'Status', 

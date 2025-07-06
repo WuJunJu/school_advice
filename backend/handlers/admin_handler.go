@@ -92,7 +92,7 @@ func GetAllSuggestions(c *gin.Context) {
 
 	// Authorization: Department admins can only see their department's suggestions unless CanViewAll is true
 	if adminClaims.Role == "department_admin" && !adminClaims.CanViewAll {
-		query = query.Where("department_id = ?", adminClaims.DepartmentID)
+		query = query.Where("department_id = ? OR department_id IS NULL", adminClaims.DepartmentID)
 		// Department admins should only see suggestions that have been reviewed
 		query = query.Where("status <> ?", "待审核")
 	}
@@ -141,7 +141,7 @@ func getSuggestionAndCheckAuth(c *gin.Context) (*models.Suggestion, error) {
 	}
 
 	// Authorization check
-	if adminClaims.Role == "department_admin" && !adminClaims.CanViewAll && suggestion.DepartmentID != adminClaims.DepartmentID {
+	if adminClaims.Role == "department_admin" && !adminClaims.CanViewAll && suggestion.DepartmentID != nil && *suggestion.DepartmentID != adminClaims.DepartmentID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You are not authorized to access this suggestion"})
 		return nil, errors.New("unauthorized")
 	}

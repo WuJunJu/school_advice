@@ -14,7 +14,7 @@ type SuggestionInput struct {
 	Title          string `json:"title" binding:"required"`
 	Content        string `json:"content" binding:"required"`
 	Category       string `json:"category"`
-	DepartmentID   uint   `json:"department_id" binding:"required"`
+	DepartmentID   uint   `json:"department_id"`
 	SubmitterName  string `json:"submitter_name"`
 	SubmitterClass string `json:"submitter_class"`
 	IsPublic       bool   `json:"is_public"`
@@ -45,24 +45,28 @@ func SubmitSuggestion(c *gin.Context) {
 		return
 	}
 
-	// Validate DepartmentID exists
-	var department models.Department
-	if err := database.DB.First(&department, input.DepartmentID).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid department ID"})
-		return
+	var suggestion models.Suggestion
+	if input.DepartmentID == 0 {
+		// 0 represents all departments
+		suggestion.DepartmentID = nil
+	} else {
+		// Validate DepartmentID exists
+		var department models.Department
+		if err := database.DB.First(&department, input.DepartmentID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid department ID"})
+			return
+		}
+		suggestion.DepartmentID = &input.DepartmentID
 	}
 
-	suggestion := models.Suggestion{
-		Title:          input.Title,
-		Content:        input.Content,
-		Category:       input.Category,
-		DepartmentID:   input.DepartmentID,
-		SubmitterName:  input.SubmitterName,
-		SubmitterClass: input.SubmitterClass,
-		Status:         "待审核",
-		TrackingCode:   utils.GenerateTrackingCode(6),
-		IsPublic:       input.IsPublic,
-	}
+	suggestion.Title = input.Title
+	suggestion.Content = input.Content
+	suggestion.Category = input.Category
+	suggestion.SubmitterName = input.SubmitterName
+	suggestion.SubmitterClass = input.SubmitterClass
+	suggestion.Status = "待审核"
+	suggestion.TrackingCode = utils.GenerateTrackingCode(6)
+	suggestion.IsPublic = input.IsPublic
 
 	if err := database.DB.Create(&suggestion).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create suggestion"})

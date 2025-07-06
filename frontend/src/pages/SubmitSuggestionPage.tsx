@@ -149,6 +149,9 @@ const SubmitSuggestionPage: React.FC = () => {
                       rules={[{ required: true, message: '请选择一个目标部门' }]}
                     >
                       <Select placeholder="请选择负责处理该建议的部门">
+                        <Option key="all" value={0}>
+                          全部部门
+                        </Option>
                         {departments.map((dep) => (
                           <Option key={dep.ID} value={dep.ID}>
                             {dep.Name}

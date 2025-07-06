@@ -21,7 +21,7 @@ type Suggestion struct {
 	Title          string `gorm:"not null"`
 	Content        string `gorm:"not null"`
 	Category       string
-	DepartmentID   uint       `gorm:"not null"`
+	DepartmentID   *uint
 	Department     Department `gorm:"foreignKey:DepartmentID"`
 	SubmitterName  string
 	SubmitterClass string

@@ -109,7 +109,11 @@ const QuerySuggestionPage: React.FC = () => {
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="标题">{currentSuggestion.Title}</Descriptions.Item>
             <Descriptions.Item label="内容">{currentSuggestion.Content}</Descriptions.Item>
-            <Descriptions.Item label="提交至">{currentSuggestion.Department.Name}</Descriptions.Item>
+            <Descriptions.Item label="提交至">
+              {currentSuggestion.Department && currentSuggestion.Department.Name
+                ? currentSuggestion.Department.Name
+                : '全部部门'}
+            </Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag>{currentSuggestion.Status}</Tag>
             </Descriptions.Item>
