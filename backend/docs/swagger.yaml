@@ -1,0 +1,571 @@
+basePath: /api/v1
+definitions:
+  handlers.CreateAdminInput:
+    properties:
+      can_view_all:
+        type: boolean
+      department_id:
+        type: integer
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - department_id
+    - password
+    - username
+    type: object
+  handlers.DepartmentInput:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  handlers.LoginInput:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.ReplyInput:
+    properties:
+      content:
+        type: string
+    required:
+    - content
+    type: object
+  handlers.SuggestionInput:
+    properties:
+      category:
+        type: string
+      content:
+        type: string
+      department_id:
+        type: integer
+      submitter_class:
+        type: string
+      submitter_name:
+        type: string
+      title:
+        type: string
+    required:
+    - content
+    - department_id
+    - title
+    type: object
+  handlers.UpdateAdminInput:
+    properties:
+      can_view_all:
+        type: boolean
+      department_id:
+        type: integer
+    type: object
+  handlers.UpdateStatusInput:
+    properties:
+      status:
+        type: string
+    required:
+    - status
+    type: object
+  models.AdminUser:
+    properties:
+      canViewAll:
+        type: boolean
+      createdAt:
+        type: string
+      departmentID:
+        type: integer
+      id:
+        type: integer
+      passwordHash:
+        type: string
+      role:
+        description: '"super_admin", "department_admin"'
+        type: string
+      username:
+        type: string
+    type: object
+  models.Department:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  models.Reply:
+    properties:
+      content:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: integer
+      replier:
+        $ref: '#/definitions/models.AdminUser'
+      replierID:
+        description: AdminUser ID
+        type: integer
+      suggestionID:
+        type: integer
+    type: object
+  models.Suggestion:
+    properties:
+      category:
+        type: string
+      content:
+        type: string
+      createdAt:
+        type: string
+      department:
+        $ref: '#/definitions/models.Department'
+      departmentID:
+        type: integer
+      id:
+        type: integer
+      replies:
+        items:
+          $ref: '#/definitions/models.Reply'
+        type: array
+      status:
+        description: '"待审核", "待处理", "处理中", "已解决", "已关闭", "审核不通过"'
+        type: string
+      submitterClass:
+        type: string
+      submitterName:
+        type: string
+      title:
+        type: string
+      trackingCode:
+        type: string
+      updatedAt:
+        type: string
+      upvotes:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is an API for a student suggestion system.
+  title: Student Suggestion API
+  version: "1.0"
+paths:
+  /admin/departments:
+    get:
+      description: Get a list of all available departments.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Department'
+            type: array
+      summary: Get all departments
+      tags:
+      - departments
+    post:
+      consumes:
+      - application/json
+      description: Add a new department.
+      parameters:
+      - description: Department Name
+        in: body
+        name: department
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.DepartmentInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Department'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new department
+      tags:
+      - admin-departments
+  /admin/departments/{id}:
+    delete:
+      description: Remove a department.
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a department
+      tags:
+      - admin-departments
+    put:
+      consumes:
+      - application/json
+      description: Update an existing department's name.
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New Department Name
+        in: body
+        name: department
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.DepartmentInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Department'
+      security:
+      - ApiKeyAuth: []
+      summary: Update a department
+      tags:
+      - admin-departments
+  /admin/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate an admin user and return a JWT.
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Admin login
+      tags:
+      - admin
+  /admin/suggestions:
+    get:
+      description: Get a paginated list of all suggestions, with filters.
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Filter by department ID
+        in: query
+        name: department_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get all suggestions (for admins)
+      tags:
+      - admin-suggestions
+  /admin/suggestions/{id}:
+    get:
+      description: Get full details of a suggestion by its ID.
+      parameters:
+      - description: Suggestion ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Suggestion'
+      security:
+      - ApiKeyAuth: []
+      summary: Get suggestion by ID (for admins)
+      tags:
+      - admin-suggestions
+  /admin/suggestions/{id}/replies:
+    post:
+      consumes:
+      - application/json
+      description: Post an official reply to a suggestion.
+      parameters:
+      - description: Suggestion ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Reply Content
+        in: body
+        name: reply
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ReplyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Reply'
+      security:
+      - ApiKeyAuth: []
+      summary: Add a reply to a suggestion
+      tags:
+      - admin-suggestions
+  /admin/suggestions/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Change the status of a suggestion.
+      parameters:
+      - description: Suggestion ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New Status
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateStatusInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Suggestion'
+      security:
+      - ApiKeyAuth: []
+      summary: Update suggestion status
+      tags:
+      - admin-suggestions
+  /admin/users:
+    get:
+      description: Get a list of all admin accounts.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.AdminUser'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      summary: Get all admin users
+      tags:
+      - admin-users
+    post:
+      consumes:
+      - application/json
+      description: Add a new department admin account.
+      parameters:
+      - description: Admin Creation
+        in: body
+        name: admin
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateAdminInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AdminUser'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new admin user
+      tags:
+      - admin-users
+  /admin/users/{id}:
+    delete:
+      description: Remove a department admin account.
+      parameters:
+      - description: Admin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+      security:
+      - ApiKeyAuth: []
+      summary: Delete an admin user
+      tags:
+      - admin-users
+    put:
+      consumes:
+      - application/json
+      description: Update a department admin's details.
+      parameters:
+      - description: Admin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Admin Update Data
+        in: body
+        name: update
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateAdminInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AdminUser'
+      security:
+      - ApiKeyAuth: []
+      summary: Update an admin user
+      tags:
+      - admin-users
+  /departments:
+    get:
+      description: Get a list of all available departments.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Department'
+            type: array
+      summary: Get all departments
+      tags:
+      - departments
+  /suggestions:
+    get:
+      description: Get a paginated list of public suggestions.
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: pageSize
+        type: integer
+      - description: Department ID
+        in: query
+        name: department_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get public suggestions
+      tags:
+      - suggestions
+    post:
+      consumes:
+      - application/json
+      description: Add a new suggestion to the system.
+      parameters:
+      - description: Suggestion Submission
+        in: body
+        name: suggestion
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SuggestionInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Submit a new suggestion
+      tags:
+      - suggestions
+  /suggestions/{id}/upvote:
+    post:
+      description: Increment the upvote count for a suggestion.
+      parameters:
+      - description: Suggestion ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: integer
+            type: object
+      summary: Upvote a suggestion
+      tags:
+      - suggestions
+  /suggestions/{tracking_code}:
+    get:
+      description: Get details of a suggestion using its tracking code.
+      parameters:
+      - description: Suggestion Tracking Code
+        in: path
+        name: tracking_code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Suggestion'
+      summary: Get suggestion by tracking code
+      tags:
+      - suggestions
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
