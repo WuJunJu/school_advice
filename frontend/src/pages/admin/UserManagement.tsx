@@ -10,7 +10,8 @@ const { Title } = Typography;
 
 const roleColors: { [key: string]: string } = {
   "super_admin": "volcano",
-  "admin": "geekblue",
+  "department_staff": "blue",
+  "reviewer": "purple",
 };
 
 const UserManagement: React.FC = () => {
@@ -20,6 +21,7 @@ const UserManagement: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [form] = Form.useForm();
+  const [currentRole, setCurrentRole] = useState<string>('');
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -83,9 +85,11 @@ const UserManagement: React.FC = () => {
     setEditingUser(user);
     if (user) {
       form.setFieldsValue({...user, Password: ''}); // Clear password field for editing
+      setCurrentRole(user.Role);
     } else {
       form.resetFields();
-      form.setFieldsValue({ CanViewAll: false, Role: 'admin' });
+      form.setFieldsValue({ CanViewAll: false, Role: 'department_staff' });
+      setCurrentRole('department_staff');
     }
     setIsModalVisible(true);
   };
@@ -146,7 +150,7 @@ const UserManagement: React.FC = () => {
         onCancel={() => setIsModalVisible(false)}
         destroyOnClose
       >
-        <Form form={form} layout="vertical" name="userForm" initialValues={{ Role: 'admin', CanViewAll: false }}>
+        <Form form={form} layout="vertical" name="userForm" initialValues={{ Role: 'department_staff', CanViewAll: false }}>
           <Form.Item name="Username" label="用户名" rules={[{ required: true, message: '用户名不能为空' }]}>
             <Input />
           </Form.Item>
@@ -158,25 +162,40 @@ const UserManagement: React.FC = () => {
             <Input.Password />
           </Form.Item>
           <Form.Item name="Role" label="角色" rules={[{ required: true, message: '必须选择一个角色' }]}>
-            <Select>
-              <Option value="admin">Admin</Option>
-              <Option value="super_admin">Super Admin</Option>
+            <Select onChange={(value) => setCurrentRole(value)}>
+              <Option value="super_admin">超级管理员</Option>
+              <Option value="department_staff">部门人员</Option>
+              <Option value="reviewer">审核人员</Option>
             </Select>
           </Form.Item>
           <Form.Item 
-            name="department_id" 
-            label="所属部门"
-            rules={[{ 
-              required: form.getFieldValue('Role') === 'admin', 
-              message: 'Admin角色必须关联一个部门' 
-            }]}
+            shouldUpdate={(prevValues, curValues) => prevValues.Role !== curValues.Role}
           >
-            <Select>
-              {departments.map(d => <Option key={d.ID} value={d.ID}>{d.Name}</Option>)}
-            </Select>
+            {({ getFieldValue }) => {
+              const role = getFieldValue('Role');
+              if (role === 'department_staff') {
+                return (
+                  <Form.Item 
+                    name="department_id" 
+                    label="所属部门"
+                    rules={[{ required: true, message: '部门人员必须关联一个部门' }]}
+                  >
+                    <Select>
+                      {departments.map(d => <Option key={d.ID} value={d.ID}>{d.Name}</Option>)}
+                    </Select>
+                  </Form.Item>
+                );
+              }
+              return null;
+            }}
           </Form.Item>
-          <Form.Item name="CanViewAll" label="可查看所有部门的建议" valuePropName="checked">
-            <Switch />
+
+          <Form.Item 
+            name="CanViewAll" 
+            label="可查看所有部门的建议 (仅部门人员有效)" 
+            valuePropName="checked"
+          >
+            <Switch disabled={currentRole !== 'department_staff'}/>
           </Form.Item>
         </Form>
       </Modal>

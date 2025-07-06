@@ -10,6 +10,7 @@ import {
 import type { Department } from '../../api/departments';
 import { getDepartments } from '../../api/departments';
 import { ReloadOutlined, MessageOutlined } from '@ant-design/icons';
+import { jwtDecode } from 'jwt-decode';
 
 const { Option } = Select;
 const { Title, Text, Paragraph } = Typography;
@@ -23,6 +24,16 @@ const statusColors: { [key: string]: string } = {
   "审核不通过": "magenta",
 };
 
+interface DecodedToken {
+  role: string;
+  exp: number;
+  iat: number;
+  user_id: number;
+  username: string;
+}
+
+const reviewerStatusOptions = ["待处理", "处理中", "已解决", "已关闭", "审核不通过"];
+const departmentStatusOptions = ["待处理", "处理中", "已解决", "已关闭"];
 
 const SuggestionManagement: React.FC = () => {
   const [suggestions, setSuggestions] = useState([]);
@@ -35,9 +46,8 @@ const SuggestionManagement: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [form] = Form.useForm();
+  const [userRole, setUserRole] = useState<string | null>(null);
 
-  const statusOptions = ["待处理", "处理中", "已解决", "已关闭", "审核不通过"];
-  
   const fetchSuggestions = async (page = 1, currentView = view, currentFilters = filters) => {
     setLoading(true);
     try {
@@ -70,12 +80,24 @@ const SuggestionManagement: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchSuggestions(1, view, filters);
-  }, [view, filters]);
-
-  useEffect(() => {
+    const token = localStorage.getItem('admin_token');
+    if (token) {
+      try {
+        const decodedToken = jwtDecode<DecodedToken>(token);
+        setUserRole(decodedToken.role);
+        if (decodedToken.role === 'department_staff') {
+          setView('已审核');
+        }
+      } catch (error) {
+        console.error("Invalid token:", error);
+      }
+    }
     fetchDepartments();
   }, []);
+
+  useEffect(() => {
+    fetchSuggestions(1, view, filters);
+  }, [view, filters]);
 
   const handleTableChange = (newPagination: any) => {
     fetchSuggestions(newPagination.current, view, filters);
@@ -163,21 +185,40 @@ const SuggestionManagement: React.FC = () => {
       fixed: 'right' as const,
       width: 250,
       render: (_: any, record: any) => {
+        const canUpdateStatus = userRole === 'super_admin' || userRole === 'reviewer';
+
         if (view === '待审核') {
           return (
             <Space size="middle">
-              <Button type="primary" size="small" onClick={() => handleStatusChange(record.ID, '待处理')}>批准</Button>
-              <Button danger size="small" onClick={() => handleStatusChange(record.ID, '审核不通过')}>驳回</Button>
+              {canUpdateStatus && <Button type="primary" size="small" onClick={() => handleStatusChange(record.ID, '待处理')}>批准</Button>}
+              {canUpdateStatus && <Button danger size="small" onClick={() => handleStatusChange(record.ID, '审核不通过')}>驳回</Button>}
               <Button type="link" size="small" onClick={() => showReplyModal(record)}>查看详情</Button>
             </Space>
           )
         }
         return (
           <Space size="middle">
-              <Select defaultValue={record.Status} style={{ width: 120 }} onChange={(value) => handleStatusChange(record.ID, value)} size="small">
-                  {statusOptions.map(opt => <Option key={opt} value={opt}>{opt}</Option>)}
-              </Select>
-              <Button type="link" onClick={() => showReplyModal(record)}>查看/回复</Button>
+            {(() => {
+              if (userRole === 'super_admin' || userRole === 'reviewer') {
+                return (
+                  <Select defaultValue={record.Status} style={{ width: 120 }} onChange={(value) => handleStatusChange(record.ID, value)} size="small">
+                    {reviewerStatusOptions.map(opt => <Option key={opt} value={opt}>{opt}</Option>)}
+                  </Select>
+                );
+              }
+              if (userRole === 'department_staff') {
+                if (record.Status === '审核不通过') {
+                    return <Tag color={statusColors[record.Status] || 'default'}>{record.Status}</Tag>;
+                }
+                return (
+                  <Select defaultValue={record.Status} style={{ width: 120 }} onChange={(value) => handleStatusChange(record.ID, value)} size="small">
+                    {departmentStatusOptions.map(opt => <Option key={opt} value={opt}>{opt}</Option>)}
+                  </Select>
+                );
+              }
+              return <Tag color={statusColors[record.Status] || 'default'}>{record.Status}</Tag>;
+            })()}
+            <Button type="link" onClick={() => showReplyModal(record)}>查看/回复</Button>
           </Space>
         )
       },
@@ -195,6 +236,8 @@ const SuggestionManagement: React.FC = () => {
   
   const renderModalContent = () => {
     if (!selectedSuggestion) return null;
+
+    const canReply = userRole !== 'reviewer';
 
     return (
         <div>
@@ -231,24 +274,28 @@ const SuggestionManagement: React.FC = () => {
                 <Text>暂无官方回复。</Text>
             )}
 
-            <Title level={5} style={{ marginTop: 24, marginBottom: 16 }}>添加新回复</Title>
-             <Space align="start" style={{ width: '100%' }}>
-                <Avatar>我</Avatar>
-                <div style={{ flex: 1 }}>
-                    <Form form={form} onFinish={handleReplySubmit}>
-                        <Form.Item name="content" style={{marginBottom: 8}} rules={[{ required: true, message: "回复内容不能为空" }]}>
-                            <Input.TextArea rows={4} placeholder="输入您的回复..." />
-                        </Form.Item>
-                        <Form.Item style={{marginBottom: 0}}>
-                            <Button htmlType="submit" type="primary">
-                                提交回复
-                            </Button>
-                        </Form.Item>
-                    </Form>
-                </div>
-            </Space>
+            {canReply && (
+              <>
+                <Title level={5} style={{ marginTop: 24, marginBottom: 16 }}>添加新回复</Title>
+                <Space align="start" style={{ width: '100%' }}>
+                    <Avatar>我</Avatar>
+                    <div style={{ flex: 1 }}>
+                        <Form form={form} onFinish={handleReplySubmit}>
+                            <Form.Item name="content" style={{marginBottom: 8}} rules={[{ required: true, message: "回复内容不能为空" }]}>
+                                <Input.TextArea rows={4} placeholder="输入您的回复..." />
+                            </Form.Item>
+                            <Form.Item style={{marginBottom: 0}}>
+                                <Button htmlType="submit" type="primary">
+                                    提交回复
+                                </Button>
+                            </Form.Item>
+                        </Form>
+                    </div>
+                </Space>
+              </>
+            )}
         </div>
-    )
+    );
   }
 
   return (
@@ -256,10 +303,12 @@ const SuggestionManagement: React.FC = () => {
       <Title level={4}>建议管理</Title>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Col>
-          <Radio.Group value={view} onChange={e => setView(e.target.value)}>
-            <Radio.Button value="待审核">待审核</Radio.Button>
-            <Radio.Button value="已审核">已审核</Radio.Button>
-          </Radio.Group>
+          {userRole !== 'department_staff' && (
+            <Radio.Group value={view} onChange={(e) => setView(e.target.value)}>
+              <Radio.Button value="待审核">待审核</Radio.Button>
+              <Radio.Button value="已审核">已审核</Radio.Button>
+            </Radio.Group>
+          )}
         </Col>
         <Col>
           <Space>
