@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Select, Button, Modal, Form, Input, message, Space, Card, Row, Col, Typography, Tag, Descriptions, List, Avatar } from 'antd';
+import { Table, Select, Button, Modal, Form, Input, message, Space, Card, Row, Col, Typography, Tag, Descriptions, List, Avatar, Radio } from 'antd';
 import {
   getAdminSuggestions,
   updateSuggestionStatus,
@@ -27,21 +27,23 @@ const SuggestionManagement: React.FC = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
-  const [filters, setFilters] = useState<{ status?: string, department_id?: number }>({});
+  const [filters, setFilters] = useState<{ department_id?: number }>({});
+  const [view, setView] = useState('待审核'); // '待审核' or '已审核'
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<any>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [form] = Form.useForm();
 
-  const statusOptions = ["待审核", "待处理", "处理中", "已解决", "已关闭", "审核不通过"];
+  const statusOptions = ["待处理", "处理中", "已解决", "已关闭", "审核不通过"];
   
-  const fetchSuggestions = async (page = pagination.current, newFilters = filters) => {
+  const fetchSuggestions = async (page = 1, currentView = view, currentFilters = filters) => {
     setLoading(true);
     try {
       const response = await getAdminSuggestions({
         page: page,
         pageSize: pagination.pageSize,
-        ...newFilters,
+        status: currentView,
+        ...currentFilters,
       });
       setSuggestions(response.data);
       setPagination(prev => ({
@@ -66,27 +68,31 @@ const SuggestionManagement: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchSuggestions(1, filters);
-  }, [filters]);
+    fetchSuggestions(1, view, filters);
+  }, [view, filters]);
 
   useEffect(() => {
     fetchDepartments();
   }, []);
 
   const handleTableChange = (newPagination: any) => {
-    fetchSuggestions(newPagination.current, filters);
+    fetchSuggestions(newPagination.current, view, filters);
   };
   
   const handleFilterChange = (key: string, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    const newFilters = { ...filters, [key]: value };
+    if (!value) {
+      delete (newFilters as any)[key];
+    }
+    setFilters(newFilters);
   }
 
   const handleStatusChange = async (suggestionId: number, status: string) => {
     try {
       await updateSuggestionStatus(suggestionId, status);
       message.success('状态更新成功');
-      // Optimistic update
-      setSuggestions(prev => prev.map(s => s.ID === suggestionId ? {...s, Status: status} : s));
+      // Refetch current view
+      fetchSuggestions(pagination.current, view, filters);
     } catch (error) {
       message.error('状态更新失败');
     }
@@ -117,14 +123,14 @@ const SuggestionManagement: React.FC = () => {
   };
 
   const columns = [
-    { title: '标题', dataIndex: 'Title', key: 'title', width: 300 },
+    { title: '标题', dataIndex: 'Title', key: 'title', width: 250 },
     { title: '提交人', dataIndex: 'SubmitterName', key: 'submitter', render: (name: string) => name || '匿名' },
     { title: '部门', dataIndex: ['Department', 'Name'], key: 'department' },
     { 
       title: '状态', 
       dataIndex: 'Status', 
       key: 'status', 
-      render: (status: string, record: any) => (
+      render: (status: string) => (
         <Tag color={statusColors[status] || 'default'}>{status}</Tag>
       )
     },
@@ -133,15 +139,26 @@ const SuggestionManagement: React.FC = () => {
       title: '操作',
       key: 'action',
       fixed: 'right' as const,
-      width: 220,
-      render: (_: any, record: any) => (
-        <Space size="middle">
-            <Select defaultValue={record.Status} style={{ width: 120 }} onChange={(value) => handleStatusChange(record.ID, value)} size="small">
-                {statusOptions.map(opt => <Option key={opt} value={opt}>{opt}</Option>)}
-            </Select>
-            <Button type="link" onClick={() => showReplyModal(record)}>查看/回复</Button>
-        </Space>
-      ),
+      width: 250,
+      render: (_: any, record: any) => {
+        if (view === '待审核') {
+          return (
+            <Space size="middle">
+              <Button type="primary" size="small" onClick={() => handleStatusChange(record.ID, '待处理')}>批准</Button>
+              <Button danger size="small" onClick={() => handleStatusChange(record.ID, '审核不通过')}>驳回</Button>
+              <Button type="link" size="small" onClick={() => showReplyModal(record)}>查看详情</Button>
+            </Space>
+          )
+        }
+        return (
+          <Space size="middle">
+              <Select defaultValue={record.Status} style={{ width: 120 }} onChange={(value) => handleStatusChange(record.ID, value)} size="small">
+                  {statusOptions.map(opt => <Option key={opt} value={opt}>{opt}</Option>)}
+              </Select>
+              <Button type="link" onClick={() => showReplyModal(record)}>查看/回复</Button>
+          </Space>
+        )
+      },
     },
   ];
   
@@ -208,14 +225,10 @@ const SuggestionManagement: React.FC = () => {
       <Title level={4}>建议管理</Title>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col>
-          <Select
-            placeholder="按状态筛选"
-            style={{ width: 150 }}
-            allowClear
-            onChange={(value) => handleFilterChange('status', value)}
-          >
-            {statusOptions.map(opt => <Option key={opt} value={opt}>{opt}</Option>)}
-          </Select>
+          <Radio.Group value={view} onChange={(e) => setView(e.target.value)}>
+            <Radio.Button value="待审核">待审核</Radio.Button>
+            <Radio.Button value="已审核">已审核</Radio.Button>
+          </Radio.Group>
         </Col>
         <Col>
           <Select
@@ -228,7 +241,7 @@ const SuggestionManagement: React.FC = () => {
             </Select>
         </Col>
         <Col>
-          <Button icon={<ReloadOutlined />} onClick={() => fetchSuggestions(1, filters)}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchSuggestions(1, view, filters)}>刷新</Button>
         </Col>
       </Row>
       <Table

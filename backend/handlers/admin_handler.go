@@ -93,11 +93,17 @@ func GetAllSuggestions(c *gin.Context) {
 	// Authorization: Department admins can only see their department's suggestions unless CanViewAll is true
 	if adminClaims.Role == "department_admin" && !adminClaims.CanViewAll {
 		query = query.Where("department_id = ?", adminClaims.DepartmentID)
+		// Department admins should only see suggestions that have been reviewed
+		query = query.Where("status <> ?", "待审核")
 	}
 
 	// Filtering
 	if status := c.Query("status"); status != "" {
-		query = query.Where("status = ?", status)
+		if status == "已审核" {
+			query = query.Where("status <> ?", "待审核")
+		} else {
+			query = query.Where("status = ?", status)
+		}
 	}
 	if departmentID := c.Query("department_id"); departmentID != "" {
 		// Super admins or admins with CanViewAll can filter by any department

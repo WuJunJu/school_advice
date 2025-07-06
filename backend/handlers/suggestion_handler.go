@@ -119,7 +119,7 @@ func GetPublicSuggestions(c *gin.Context) {
 	query := database.DB.Model(&models.Suggestion{}).
 		Preload("Department").
 		Where("is_public = ?", true).
-		Where("status IN (?)", []string{"已解决", "已关闭"}).
+		Where("status NOT IN (?)", []string{"待审核", "审核不通过"}).
 		Order("created_at DESC")
 
 	// Filtering

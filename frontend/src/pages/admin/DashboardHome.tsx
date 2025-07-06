@@ -18,8 +18,9 @@ const DashboardHome: React.FC = () => {
         setLoading(true);
         const data = await getDashboardStats();
         // The backend weekly_trend returns 'date', but recharts needs 'name'
-        // We also need to format the date for better readability
-        const formattedTrend = data.weekly_trend.map((d: any) => ({
+        // We also need to format the date for better readability and sort it chronologically
+        const sortedTrend = [...data.weekly_trend].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const formattedTrend = sortedTrend.map((d: any) => ({
           ...d,
           name: new Date(d.date).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }),
         }));
